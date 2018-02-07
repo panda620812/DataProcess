@@ -10,15 +10,18 @@
 
 # define PileNUM         DataAreaSize/PrePileSize
 
+# define RIGHT         1
+# define LEFT         2
+
 //单条最大长度 255
 #pragma pack(1)
 typedef struct
 {
-    unsigned char     startflag[2];
-    unsigned char     function;
-    char             datalen;
-    char*            dataadress;
-    unsigned short     sumcheck;
+    unsigned char       startflag[2];
+    unsigned char       function;
+    char                datalen;
+    char*               dataadress;
+    unsigned short      sumcheck;
     // unsigned char;
 }IndexItemType;
 #pragma pack()
@@ -31,12 +34,12 @@ typedef struct
 
 //前面100作为索引使用
 //后面作为数据域使用
-unsigned char DataSaveArea[500] = {};
+unsigned char DataSaveArea[500] = {0xAA};
 
 unsigned char  DataSave(unsigned char* data_save_start_adress);
 unsigned char  IndexCreate();
-
-unsigned char  MallocCreate(unsigned char* bitmapadress,unsigned char bitmapnum,unsigned char bitnum);
+unsigned char  BitNumReturn(unsigned char bitvalue,unsigned char * vector);
+unsigned char  *MallocCreate(unsigned char* bitmapadress,unsigned char spacelen,unsigned char* dataadress);
 unsigned char DataFind();
 unsigned char DataReplace();
 unsigned char DataDelete();
@@ -44,11 +47,21 @@ unsigned char DataAdd();
 unsigned short  DataScan(unsigned char* dataadress,unsigned char* dataendadress,unsigned char* bitmapadress);
 unsigned int CRC16_Checkout ( unsigned char *puchMsg, unsigned int usDataLen );
 IndexItemType IndexItem;
-
+IndexItemType *IndexItem2;
 
 
 int main(int argc, char *argv[])
 {
+    IndexItem2 = DataSaveArea;
+    IndexItem2->startflag[0] = 0xAA;
+    IndexItem2->function = 0xCC;
+    IndexItem2->datalen = 0x00;
+    IndexItem2->dataadress = &DataSaveArea[100];
+    IndexItem2->sumcheck = 11;
+
+
+
+
     printf("%d  \n",argc);
     printf("sizeof(IndexItem) %d  \n",sizeof(IndexItem));
 
@@ -60,9 +73,9 @@ int main(int argc, char *argv[])
 
 	unsigned char temp;
 	
-    unsigned char bitmap[BITMAPLEN] = {0xAA};
+    unsigned char bitmap[BITMAPLEN] = {};
 	//扫描
-	DataScan(DataSaveArea,index_end_adress,bitmap);
+    save_index_num = DataScan(&DataSaveArea[100],index_end_adress,bitmap);
     printf("save_index_num: %d\n",save_index_num);
 	for(temp = 0;temp<10;temp++)
 	{
@@ -115,7 +128,7 @@ unsigned short  DataScan(unsigned char* datastartadress,unsigned char* dataendad
     unsigned char pilenum2;//簇数
 	
 	unsigned char bitsave8_1[] = {0x80,0xC0,0xE0,0xF0,0xF8,0xFC,0xFE,0xFF};
-	unsigned char bitsave8_2[] = {0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80};
+	unsigned char bitsave8_2[] = {0x01,0x03,0x07,0x0F,0x1F,0x3F,0x7F,0xFF};
 
     while(itemnum)//按照目录数检索
     {
@@ -155,7 +168,6 @@ unsigned short  DataScan(unsigned char* datastartadress,unsigned char* dataendad
 					temp++;					
 				}
 				*(bitmapadress + pilenum1 + temp) = bitsave8_2[remainder1];
-				
 			}
             else
             {
@@ -168,8 +180,7 @@ unsigned short  DataScan(unsigned char* datastartadress,unsigned char* dataendad
         {
             printf("Scan Error\n");
             //纠错处理
-        }
-		
+        }		
 		*adress += IndexItemSize;//增加1条距离 下条索引
     }
     return itemcount;
@@ -189,18 +200,94 @@ unsigned char  IndexCreate()
 
     return 1;
 }
-//存储空间查找                        //地址 总长度 bit数
-unsigned char  MallocCreate(unsigned char* bitmapadress,unsigned char spacelen,unsigned char surplus)
+//bitnumreturn 
+unsigned char  BitNumReturn(unsigned char bitvalue,unsigned char * vector)
+{
+	unsigned char num;	
+	switch(bitvalue)
+	{
+		case 0x01:	num = 7; *vector = LEFT;	break; 
+		case 0x80:	num = 7; *vector = RIGHT;	break;
+		case 0x03:	num = 6; *vector = LEFT;	break; 
+		case 0xC0:	num = 6; *vector = RIGHT;	break;
+		case 0x07:	num = 5; *vector = LEFT;	break; 
+		case 0xE0:	num = 5; *vector = RIGHT;	break;
+		case 0x0F:	num = 4; *vector = LEFT;	break; 
+		case 0xF0:	num = 4; *vector = RIGHT;	break;
+		case 0x1F:	num = 3; *vector = LEFT;	break; 
+		case 0xF8:	num = 3; *vector = RIGHT;	break;
+		case 0x3F:	num = 2; *vector = LEFT;	break; 
+		case 0xFC:	num = 2; *vector = RIGHT;	break;
+		case 0x7F:	num = 1; *vector = LEFT;	break; 
+		case 0xFE:	num = 1; *vector = RIGHT;	break;
+		default: 	num = 0;					break;
+	}
+	
+    return num;
+}
+/*************
+Parameters	:bitmapnum 	bitnum  vector *dataadress
+Return 		:save dataadress
+*************/
+unsigned char *bitmapToadress(unsigned char bitmapnum,unsigned char bitnum,unsigned char vector,unsigned char *dataadress )
+{
+	char *returnadress;
+    returnadress =dataadress + ( bitmapnum * 8 + bitnum)* PrePileSize;//
+	//超界判断
+	//多余pile处理
+	//申请时应靠近已有的空间
+	return returnadress;
+}
+/*************
+Parameters	:bitmapnum 	bitnum  vector *dataadress
+Return 		:save dataadress
+*************/
+//存储空间查找                        
+	//bitma地址 所需空间长度 存储区域地址
+unsigned char  *MallocCreate(unsigned char* bitmapadress,unsigned char spacelen,unsigned char* dataadress)
 {
     unsigned char len = 0;
     unsigned char bitmapnum;
+    unsigned char bitnum;
+    unsigned char bitnum2;
+	unsigned char *vector;//存储方向
+	unsigned char *returnadress;
+	unsigned char datasaverecord;
+	
 	//存储所需空间
 	unsigned char needspace = (spacelen / PrePileSize);
     if((spacelen % PrePileSize)>0)
 		needspace++;
 	
 	while(len < BITMAPLEN)
-    {	//空间寻找	
+    {	
+
+		//空间寻找	
+		if(0xFF == *(bitmapadress + len))
+		{
+					
+		}
+		else
+		{	//
+			bitnum = BitNumReturn(*(bitmapadress + len),vector);
+			if(bitnum >= needspace)
+			{
+				if(vector == LEFT)
+					;
+				else if(vector == RIGHT)
+					bitnum = 8-bitnum;
+				
+				*returnadress=bitmapToadress(len,bitnum,0,dataadress);
+				return returnadress;
+			}
+			else
+			{	
+				if(0xFF == *(bitmapadress + len+1))
+				{}
+				// bitnum2 = BitNumReturn(*(bitmapadress + len + 1),vector);
+				
+			}		
+		}
 		// if((8 - *(bitmapadress + len)) >= needspace)//剩余空间bitmap 1元素就满足时
 		// {
 			
@@ -218,7 +305,7 @@ unsigned char  MallocCreate(unsigned char* bitmapadress,unsigned char spacelen,u
 		len ++;
     }
 	
-    return 0;
+    return 0;//返回map编号
 }
 //数据查找
 unsigned char DataFind()
