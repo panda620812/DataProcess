@@ -30,7 +30,7 @@ typedef struct
 
 //前面100作为索引使用
 //后面作为数据域使用
-char DataSaveArea[500] = {};
+unsigned char DataSaveArea[500] = {};
 
 unsigned char  DataSave(unsigned char* data_save_start_adress);
 unsigned char  IndexCreate();
@@ -57,11 +57,17 @@ int main(int argc, char *argv[])
     unsigned short save_data_num;
     unsigned short save_index_num;
 
-    unsigned char bitmap[50] = {0};
+	unsigned char temp;
+	
+    unsigned char bitmap[10] = {0};
 
-   // unsigned short  DataScan(unsigned char* dataadress,unsigned char* dataendadress,unsigned char* bitmapadress);
+	DataScan(DataSaveArea,index_end_adress,bitmap);
     printf("save_index_num: %d\n",save_index_num);
-
+	for(temp = 0;temp<10;temp++)
+	{
+		printf("bitmap :%d\n",bitmap[temp]);		
+	}
+	
 
 
 
@@ -82,7 +88,7 @@ void BitmapProcess(unsigned char * bitmap,unsigned short NUM)
 
 //数据扫描--已存储数据条数
 //数据域起始地址 结束地址  位图起始地址
-unsigned short  DataScan(unsigned char* datastartadress,unsigned char* dataendadress,unsigned char* bitmapadress)
+unsigned short  DataScan(unsigned char* datastartadress,unsigned char* dataendadress,unsigned char* bitmap_adress)
 {
     // unsigned short itemnum = 0;
     // unsigned short crccalsulate = 0;
@@ -127,11 +133,16 @@ unsigned short  DataScan(unsigned char* datastartadress,unsigned char* dataendad
     //每条保存的地址
 	unsigned char *itemdataadress;    	//item 保存 数据位置
     unsigned short saveprelen;        	//开始到当前数据的长度
-    // unsigned short bitmapadress;    	//bitmap adress
+    unsigned short bitmapadress = bitmap_adress;    	//bitmap adress
     unsigned short bitmapnum;    		//bitmap adress
 
-    unsigned char remainder;//余数
-    unsigned char pilenum;//簇数
+    unsigned char remainder1;//余数1 针对preadress 之前的数据
+    unsigned char remainder2;//余数	 之后	
+    unsigned char pilenum1;//簇数    针对preadress 之前的数据  即 bitmap 位置
+    unsigned char pilenum2;//簇数
+	
+	unsigned char bitsave8_1[] = {0x80,0xC0,0xE0,0xF0,0xF8,0xFC,0xFE,0xFF};
+	unsigned char bitsave8_2[] = {0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80};
 
     while(itemnum)//按照目录数检索
     {
@@ -141,54 +152,78 @@ unsigned short  DataScan(unsigned char* datastartadress,unsigned char* dataendad
         {
         }
         else if(*adress == 0xAA)
-        {
+        {	
+			//校验和
             crcget = adress[IndexItemSize-1] + adress[IndexItemSize-2];
             crccalsulate = CRC16_Checkout(adress,sizeof(IndexItemSize - 2));
-            if(crccalsulate == crcget)
+            //满足校验
+			if(crccalsulate == crcget)
             {
-                *adress += IndexItemSize;		//下条索引
-                itemcount ++;					//当前数据数++
-                datalen = *(adress + 3) + 6;	//存储的数据长度
-                pilenum = datalen / PrePileSize;  //数据簇数量
+                // *adress += IndexItemSize;		//下条索引
+                itemcount ++;						//当前数据数++
+                datalen = *(adress + 3) + 6;		//存储的数据长度
+               
 
-                saveprelen = ((adress + 4)) - datastartadress;	//保存的数据起始地址到数据域开始长度
-				saveprelen = saveprelen / PrePileSize;					//当前数据域前簇数量
-                if(0 == (saveprelen/8))									//
-                {
-                    temp = saveprelen/8;
+                saveprelen = *((unsigned char **)((adress + 4))) - datastartadress;		//保存的数据起始地址到数据域开始长度
+				// saveprelen = saveprelen / PrePileSize;									//当前数据域前簇数量
+                
+				remainder1 	= (saveprelen/PrePileSize)%8;
+				pilenum1   	= (saveprelen/PrePileSize)/8; //bitmap 位置
+				*(bitmapadress + pilenum1) = bitsave8[remainder1];//写入bitmap值
+				
+				remainder2  = ((datalen - remainder2)% PrePileSize)%8;  	//多余数据簇数量
+				pilenum2 	= ((datalen - remainder2)/ PrePileSize)/8;  	//数据簇数量
+				
+				temp =1
+				while(pilenum2)
+				{
+					pilenum2 -- ;
+					*(bitmapadress + pilenum1 + temp) = 0xFF;
+					temp++;					
+				}
+				*(bitmapadress + pilenum1 + temp) = bitsave8_2[remainder1];
+				
+				
+				
+				datalen/
+				datalen/
+				
+				// if(0 == (saveprelen/8))													// 
+                // {
+                    // temp = saveprelen/8;
 					
-					while(pilenum)
-					{
-						pilenum -- ;
-					}
+					// while(pilenum)
+					// {
+						// pilenum -- ;
+					// }
 					
 					
 					
-					remainder = saveprelen%8;
-                    bitmapnum = temp/8;// bitmap 编号
-                    while( remainder )
-					{
-						remainder -- ;
-						bitmapadress = bitmapadress +  bitmapnum;
-						*bitmapadress += 1;
-						*bitmapadress >>1;
-					}
-					while(temp)
-					{
-						temp --;
-						itmapadress ++;
-						*itemadress = 0xff;
-					}
-                    //temp 超界判断
-                }
-                else
-                {
+					// remainder = saveprelen%8;
+                    // bitmapnum = temp/8;// bitmap 编号
+                    // while( remainder )
+					// {
+						// remainder -- ;
+						// bitmapadress = bitmapadress +  bitmapnum;
+						// *bitmapadress += 1;
+						// *bitmapadress >>1;
+					// }
+					// while(temp)
+					// {
+						// temp --;
+						// itmapadress ++;
+						// *itemadress = 0xff;
+					// }
+                    //// temp 超界判断
+                // }
+                // else
+                // {
 
-                }
+                // }
 
-                //  -> DATALEN
-                // itemnum ++;
-                // adress += 12;
+                //// -> DATALEN
+               //// itemnum ++;
+                ////adress += 12;
             }
             else
             {
@@ -203,7 +238,7 @@ unsigned short  DataScan(unsigned char* datastartadress,unsigned char* dataendad
             //纠错处理
         }
 		
-		*adress += IndexItemSize;//增加1条距离
+		*adress += IndexItemSize;//增加1条距离 下条索引
     }
     return itemcount;
 }
