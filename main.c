@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
     IndexItem2 = DataSaveArea;
     IndexItem2->startflag[0] = 0xAA;
     IndexItem2->function = 0xCC;
-    IndexItem2->datalen = 0x00;
+    IndexItem2->datalen = 0x10;
     IndexItem2->dataadress = &DataSaveArea[100];
     IndexItem2->sumcheck = 11;
 
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
 	
     unsigned char bitmap[BITMAPLEN] = {};
 	//扫描
-    save_index_num = DataScan(&DataSaveArea[100],index_end_adress,bitmap);
+    save_index_num = DataScan(&DataSaveArea,index_end_adress,bitmap);
     printf("save_index_num: %d\n",save_index_num);
 	for(temp = 0;temp<10;temp++)
 	{
@@ -129,7 +129,9 @@ unsigned short  DataScan(unsigned char* datastartadress,unsigned char* dataendad
 	
 	unsigned char bitsave8_1[] = {0x80,0xC0,0xE0,0xF0,0xF8,0xFC,0xFE,0xFF};
 	unsigned char bitsave8_2[] = {0x01,0x03,0x07,0x0F,0x1F,0x3F,0x7F,0xFF};
-
+	
+	unsigned char addoneflag = 0;//
+	
     while(itemnum)//按照目录数检索
     {
         itemnum --;
@@ -147,27 +149,92 @@ unsigned short  DataScan(unsigned char* datastartadress,unsigned char* dataendad
             {
                 // *adress += IndexItemSize;		//下条索引
                 itemcount ++;						//当前数据数++
-                datalen = *(adress + 3) + 6;		//存储的数据长度
+                datalen = *(adress + 3) ;		//存储的数据长度+ 6
                
 
-                saveprelen = *((unsigned char **)((adress + 4))) - datastartadress;		//保存的数据起始地址到数据域开始长度
+                saveprelen = *((unsigned char **)((adress + 4))) - datastartadress - 100;		//保存的数据起始地址到数据域开始长度
 				// saveprelen = saveprelen / PrePileSize;									//当前数据域前簇数量
-                
-				remainder1 	= (saveprelen/PrePileSize)%8;
-				pilenum1   	= (saveprelen/PrePileSize)/8; //bitmap 位置
-                *(bitmapadress + pilenum1) = bitsave8_1[remainder1];//写入bitmap值
-				
-				remainder2  = ((datalen - remainder2)% PrePileSize)%8;  	//多余数据簇数量
-				pilenum2 	= ((datalen - remainder2)/ PrePileSize)/8;  	//数据簇数量
-				
-                temp =1;
-				while(pilenum2)
+                if(saveprelen == 0)
 				{
-					pilenum2 -- ;
-					*(bitmapadress + pilenum1 + temp) = 0xFF;
-					temp++;					
+					remainder1 = 0;
+					pilenum1 = 0;
 				}
-				*(bitmapadress + pilenum1 + temp) = bitsave8_2[remainder1];
+				else if(saveprelen < PrePileSize)
+				{
+					remainder1 = 1;
+					pilenum1 = 0;
+				}
+				else
+				{
+					remainder1 	= (saveprelen/PrePileSize)%8;
+					if(saveprelen%PrePileSize > 0)
+						remainder1 ++;
+					
+					pilenum1 = (saveprelen/PrePileSize)/8; //bitmap 位置
+				}
+              //  *(bitmapadress + pilenum1) = bitsave8_1[remainder1];//写入bitmap值
+			  //写入bitmap 
+				if(datalen == 0)
+				{
+					//删除Index 操作
+				}
+				else if(datalen < PrePileSize)
+				{
+					remainder2 	= 1;
+					pilenum2 	= 0;
+					if((remainder1 == 1)&&(pilenum1 == 0))		//这种情况理论上不会出现
+					{
+						*(bitmapadress + pilenum1) = 0x03;						
+					}
+					else if((remainder1 > 1))
+					{
+						*(bitmapadress + pilenum1 + 1) = (bitsave8_2[remainder1]<<1) + 1;		
+					}
+					// *(bitmapadress + pilenum1) = bitsave8_2[remainder1];					
+				}
+				else
+				{
+					remainder2  = ((datalen )/ PrePileSize)%8;  	//多余数据簇数量--->修改为预先加上剩余簇处理更好点
+					if(datalen % PrePileSize)
+						remainder2 ++;
+					pilenum2 	= ((datalen )/ PrePileSize)/8;  	//数据簇数量	
+					
+					if((remainder2 == 0)&&(pilenum2 == 1))			// 正好1个8位簇
+					{
+						temp = 	8 - remainder1;
+						// for(temp2 = 0;temp2 < temp; temp2++)		
+						// {
+							*(bitmapadress + pilenum1) = 0xff;		
+						// }
+							*(bitmapadress + pilenum1 + 1) = bitsave8_2[remainder1];			
+					}
+					else if((remainder2 != 0))
+					{
+						temp = 	8 - remainder1;
+						// for(temp2 = 0;temp2 < temp; temp2++)		
+						// {
+							*(bitmapadress + pilenum1) = 0xff;		
+						// }
+						*(bitmapadress + pilenum1 + 1) = bitsave8_2[remainder2 - temp];							
+					}
+					else
+					{
+						printf("???");
+					}
+					
+					// 先保存整8簇
+					temp =1;
+					while(pilenum2)
+					{
+						pilenum2 -- ;
+						*(bitmapadress + pilenum1 + temp) = 0xFF;
+						temp++;					
+					}
+					*(bitmapadress + pilenum1 + temp) = bitsave8_2[remainder1];				
+				}
+
+				
+
 			}
             else
             {
