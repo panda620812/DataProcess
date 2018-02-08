@@ -44,23 +44,21 @@ unsigned char DataFind();
 unsigned char DataReplace();
 unsigned char DataDelete();
 unsigned char DataAdd();
-unsigned short  DataScan(unsigned char* dataadress,unsigned char* dataendadress,unsigned char* bitmapadress);
+unsigned char  DataScan(unsigned char* dataadress,unsigned char* dataendadress,unsigned char* bitmapadress);
 unsigned int CRC16_Checkout ( unsigned char *puchMsg, unsigned int usDataLen );
 IndexItemType IndexItem;
 IndexItemType *IndexItem2;
 
+unsigned char bitmap[BITMAPLEN] = {0};
 
 int main(int argc, char *argv[])
 {
     IndexItem2 = DataSaveArea;
     IndexItem2->startflag[0] = 0xAA;
     IndexItem2->function = 0xCC;
-    IndexItem2->datalen = 0x10;
+    IndexItem2->datalen = 0x80;
     IndexItem2->dataadress = &DataSaveArea[100];
     IndexItem2->sumcheck = 11;
-
-
-
 
     printf("%d  \n",argc);
     printf("sizeof(IndexItem) %d  \n",sizeof(IndexItem));
@@ -69,25 +67,20 @@ int main(int argc, char *argv[])
     unsigned char * index_end_adress;
     unsigned char * data_save_start_adress;
     unsigned short save_data_num;
-    unsigned short save_index_num;
+    unsigned char save_index_num;
 
 	unsigned char temp;
 	
-    unsigned char bitmap[BITMAPLEN] = {};
+
 	//扫描
     save_index_num = DataScan(&DataSaveArea,index_end_adress,bitmap);
     printf("save_index_num: %d\n",save_index_num);
 	for(temp = 0;temp<10;temp++)
 	{
-		printf("bitmap :%d\n",bitmap[temp]);		
+		printf("bitmap %d:%d\n",temp,bitmap[temp]);		
 	}
 	
-
-
-
-
-
-    return 0;
+   return 0;
 }
 void BitmapProcess(unsigned char * bitmap,unsigned short NUM)
 {
@@ -99,10 +92,10 @@ void BitmapProcess(unsigned char * bitmap,unsigned short NUM)
 
 //数据扫描--已存储数据条数
 //数据域起始地址 结束地址  位图起始地址
-unsigned short  DataScan(unsigned char* datastartadress,unsigned char* dataendadress,unsigned char* bitmap_adress)
+unsigned char  DataScan(unsigned char* datastartadress,unsigned char* dataendadress,unsigned char* bitmap_adress)
 {
     unsigned short itemnum = IndexItemMaxNUM;
-    unsigned short itemcount;
+    unsigned char itemcount = 0;
 
     unsigned short temp = 0;
     unsigned char temp2 = 0;
@@ -127,8 +120,8 @@ unsigned short  DataScan(unsigned char* datastartadress,unsigned char* dataendad
     unsigned char pilenum1;//簇数    针对preadress 之前的数据  即 bitmap 位置
     unsigned char pilenum2;//簇数
 	
-	unsigned char bitsave8_1[] = {0x80,0xC0,0xE0,0xF0,0xF8,0xFC,0xFE,0xFF};
-	unsigned char bitsave8_2[] = {0x01,0x03,0x07,0x0F,0x1F,0x3F,0x7F,0xFF};
+	unsigned char bitsave8_1[] = {0,0x80,0xC0,0xE0,0xF0,0xF8,0xFC,0xFE,0xFF};
+	unsigned char bitsave8_2[] = {0,0x01,0x03,0x07,0x0F,0x1F,0x3F,0x7F,0xFF};
 	
 	unsigned char addoneflag = 0;//
 	
@@ -150,10 +143,9 @@ unsigned short  DataScan(unsigned char* datastartadress,unsigned char* dataendad
                 // *adress += IndexItemSize;		//下条索引
                 itemcount ++;						//当前数据数++
                 datalen = *(adress + 3) ;		//存储的数据长度+ 6
-               
 
                 saveprelen = *((unsigned char **)((adress + 4))) - datastartadress - 100;		//保存的数据起始地址到数据域开始长度
-				// saveprelen = saveprelen / PrePileSize;									//当前数据域前簇数量
+                // saveprelen = saveprelen / PrePileSize;                                       //当前数据域前簇数量
                 if(saveprelen == 0)
 				{
 					remainder1 = 0;
@@ -192,30 +184,87 @@ unsigned short  DataScan(unsigned char* datastartadress,unsigned char* dataendad
 					}
 					// *(bitmapadress + pilenum1) = bitsave8_2[remainder1];					
 				}
-				else
+                else    //datalen > PrePileSize
 				{
-					remainder2  = ((datalen )/ PrePileSize)%8;  	//多余数据簇数量--->修改为预先加上剩余簇处理更好点
+					remainder2  = ((datalen ) / PrePileSize)%8;  	//多余数据簇数量--->修改为预先加上剩余簇处理更好点
 					if(datalen % PrePileSize)
 						remainder2 ++;
 					pilenum2 	= ((datalen )/ PrePileSize)/8;  	//数据簇数量	
 					
-					if((remainder2 == 0)&&(pilenum2 == 1))			// 正好1个8位簇
+					if((remainder2 == 0))			// 正好1个8位簇&&(pilenum2 == 1)
 					{
 						temp = 	8 - remainder1;
 						// for(temp2 = 0;temp2 < temp; temp2++)		
 						// {
-							*(bitmapadress + pilenum1) = 0xff;		
+							*(bitmapadress + pilenum1) = ((*(bitmapadress + pilenum1))&(bitsave8_1[temp]));	//处理错误	！！	
 						// }
-							*(bitmapadress + pilenum1 + 1) = bitsave8_2[remainder1];			
+						// pilenum2 --;
+						if(pilenum2 == 1)	//1 pile
+						{
+							*(bitmapadress + pilenum1 + 1) = bitsave8_2[remainder1];	
+						}
+						else				// piles
+						{
+							for(temp2 = 1; temp2 < pilenum2;temp2 ++)
+							{
+								*(bitmapadress + pilenum1 + temp2) = 0xff;		
+							}
+							*(bitmapadress + pilenum1 + 1 + temp2) = bitsave8_2[remainder1];	
+						}									
 					}
 					else if((remainder2 != 0))
 					{
-						temp = 	8 - remainder1;
+                        // if(remainder2 <= (8-remainder1))
+                        if(remainder2 <= (8-remainder1))
+						{
+                            for(temp3 = 0;temp3 < (8-remainder1);temp3++)
+							{
+								(*(bitmapadress + pilenum1)) = (*(bitmapadress + pilenum1))<<1;
+                                (*(bitmapadress + pilenum1))++;
+								
+							}	
+							// *(bitmapadress + pilenum1) = ((*(bitmapadress + pilenum1))&(bitsave8_1[8-remainder1]));	
+							temp = 	8 -  remainder1 - remainder2;//多余长度 或者是 剩余空间
+							
+							if(1 == pile)
+							{
+								
+							}
+							else
+							{
+								
+							}
+							
+						}
+						else
+						{
+							// *(bitmapadress + pilenum1) = ((*(bitmapadress + pilenum1))&(bitsave8_1[8-remainder1]));	
+							for(temp3 = 0;temp3 < (8-remainder1);temp3++)
+							{
+								(*(bitmapadress + pilenum1)) = (*(bitmapadress + pilenum1))<<1;
+                                (*(bitmapadress + pilenum1))++;
+							}	
+							temp = remainder2 - remainder1;//多余长度
+						}
 						// for(temp2 = 0;temp2 < temp; temp2++)		
 						// {
-							*(bitmapadress + pilenum1) = 0xff;		
+							// *(bitmapadress + pilenum1) = ((*(bitmapadress + pilenum1))&(bitsave8_1[8-remainder1]));	//处理错误	！！
 						// }
-						*(bitmapadress + pilenum1 + 1) = bitsave8_2[remainder2 - temp];							
+                        if((pilenum2 != 0)&&(remainder2 <= (8-remainder1)))
+                        {
+                            for(temp2 = 0; temp2 < (pilenum2);temp2 ++)
+                            {
+                                *(bitmapadress + pilenum1 + temp2 + 1) = 0xff;
+                            }
+                        }
+                        if((temp != 0)&&(pilenum2>1))//多余长度的处理
+						{
+							for(temp3 = 0;temp3 < temp; temp3++)		
+							{
+								(*(bitmapadress + pilenum1 + temp2 + 1)) = (*(bitmapadress + pilenum1 + temp2 + 1)) << 1;
+                                (*(bitmapadress + pilenum1 + temp2 + 1)) ++ ;
+							}							
+						}				
 					}
 					else
 					{
@@ -223,18 +272,23 @@ unsigned short  DataScan(unsigned char* datastartadress,unsigned char* dataendad
 					}
 					
 					// 先保存整8簇
-					temp =1;
-					while(pilenum2)
-					{
-						pilenum2 -- ;
-						*(bitmapadress + pilenum1 + temp) = 0xFF;
-						temp++;					
-					}
-					*(bitmapadress + pilenum1 + temp) = bitsave8_2[remainder1];				
+					// temp =1;
+					// while(pilenum2)
+					// {
+						// pilenum2 -- ;
+						// *(bitmapadress + pilenum1 + temp) = 0xFF;
+						// temp++;					
+					// }
+					// *(bitmapadress + pilenum1 + temp) = bitsave8_2[remainder1];				
 				}
-
-				
-
+                printf("*bitmapadress %d\n",*bitmapadress);
+                printf("*bitmapadress %d\n",*(bitmapadress + 1));
+                printf("*bitmapadress %d\n",*(bitmapadress + 2));
+                printf("*bitmapadress %d\n",*(bitmapadress + 3));
+                printf("*bitmapadress %d\n",*(bitmapadress + 4));
+                printf("*bitmapadress %d\n",*(bitmapadress + 5));
+                printf("*bitmapadress %d\n",*(bitmapadress + 6));
+                printf("*bitmapadress %d\n",*(bitmapadress + 7));
 			}
             else
             {
@@ -249,6 +303,7 @@ unsigned short  DataScan(unsigned char* datastartadress,unsigned char* dataendad
             //纠错处理
         }		
 		*adress += IndexItemSize;//增加1条距离 下条索引
+        printf("itemcount %d\n",itemcount);
     }
     return itemcount;
 }
