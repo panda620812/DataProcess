@@ -1,478 +1,485 @@
-#include <stdio.h>
 
-# define IndexItemSize         10
-# define IndexItemMaxNUM     10
 
-# define PrePileSize         10
-# define DataItemSize         50
-# define DataAreaSize         400
-# define BITMAPLEN         10
+/***************************************************************************************************
+*                    (c) Copyright 1992-2009 Embedded Products Research Center
+*                                       All Rights Reserved
+*
+*\File          usdl_bit.c
+*\Description   位操作模块，提供丰富的位操作函数
+*               创建文件。
+***************************************************************************************************/
 
-# define PileNUM         DataAreaSize/PrePileSize
+# include "stdio.h"
+# define u8 	unsigned char 
+# define u16 	unsigned short
+# define u32	unsigned int
+# define u64 	unsigned long
+# define FALSE 	0
+# define TRUE 	1 
 
-# define RIGHT         1
-# define LEFT         2
-
-//单条最大长度 255
-#pragma pack(1)
-typedef struct
+enum
 {
-    unsigned char       startflag[2];
-    unsigned char       function;
-    char                datalen;
-    char*               dataadress;
-    unsigned short      sumcheck;
-    // unsigned char;
-}IndexItemType;
-#pragma pack()
-
-//存储结构
-//start            function    datalen        data    crc
-//AA BB            03            len                    xx xx
-//
+	FALSE;
+	TRUE;
+}bool;
 
 
-//前面100作为索引使用
-//后面作为数据域使用
-unsigned char DataSaveArea[500] = {0xAA};
-
-unsigned char  DataSave(unsigned char* data_save_start_adress);
-unsigned char  IndexCreate();
-unsigned char  BitNumReturn(unsigned char bitvalue,unsigned char * vector);
-unsigned char  *MallocCreate(unsigned char* bitmapadress,unsigned char spacelen,unsigned char* dataadress);
-unsigned char DataFind();
-unsigned char DataReplace();
-unsigned char DataDelete();
-unsigned char DataAdd();
-unsigned char  DataScan(unsigned char* dataadress,unsigned char* dataendadress,unsigned char* bitmapadress);
-unsigned int CRC16_Checkout ( unsigned char *puchMsg, unsigned int usDataLen );
-IndexItemType IndexItem;
-IndexItemType *IndexItem2;
-
-unsigned char bitmap[BITMAPLEN] = {0};
-
-int main(int argc, char *argv[])
+unsigned char AreaInit(void)
 {
-    IndexItem2 = DataSaveArea;
-    IndexItem2->startflag[0] = 0xAA;
-    IndexItem2->function = 0xCC;
-    IndexItem2->datalen = 0x80;
-    IndexItem2->dataadress = &DataSaveArea[100];
-    IndexItem2->sumcheck = 11;
-
-    printf("%d  \n",argc);
-    printf("sizeof(IndexItem) %d  \n",sizeof(IndexItem));
-
-    unsigned char * index_adress;
-    unsigned char * index_end_adress;
-    unsigned char * data_save_start_adress;
-    unsigned short save_data_num;
-    unsigned char save_index_num;
-
-	unsigned char temp;
+	//标记检测 --- 是否与当前软件设置一致
+	//版本号
+	//开始
+	//Index 条数 长度 起始结束地址
+	//Data 	
+	//簇大小
 	
-
-	//扫描
-    save_index_num = DataScan(&DataSaveArea,index_end_adress,bitmap);
-    printf("save_index_num: %d\n",save_index_num);
-	for(temp = 0;temp<10;temp++)
-	{
-		printf("bitmap %d:%d\n",temp,bitmap[temp]);		
-	}
 	
-   return 0;
-}
-void BitmapProcess(unsigned char * bitmap,unsigned short NUM)
-{
-    //
-    *bitmap << 1;
-    *bitmap += 1;
+	
+	
+	
+	//写入	
 }
 
-
-//数据扫描--已存储数据条数
-//数据域起始地址 结束地址  位图起始地址
-unsigned char  DataScan(unsigned char* datastartadress,unsigned char* dataendadress,unsigned char* bitmap_adress)
+/***************************************************************************************************
+*\Function      BitPointSet
+*\Description   将src指向数据的第pos位置有效。
+*\Parameter     src     数据地址
+*\Parameter     pos     位
+*\Parameter     width   数据宽度
+*\Return        void
+*               创建函数。
+***************************************************************************************************/
+void BitPointSet(void* src, u8 pos, u8 width)
 {
-    unsigned short itemnum = IndexItemMaxNUM;
-    unsigned char itemcount = 0;
-
-    unsigned short temp = 0;
-    unsigned char temp2 = 0;
-    unsigned char temp3 = 0;
-
-    // unsigned short indexnum = 0;
-	//校验和
-    unsigned short crccalsulate = 0;
-    unsigned short crcget = 0;
-	//数据起始地址
-    unsigned char * adress = datastartadress;//Index start adress
-	//每条数据存储长度
-    unsigned short datalen;//存储的数据长度
-    //每条保存的地址
-	unsigned char *itemdataadress;    	//item 保存 数据位置
-    unsigned short saveprelen;        	//开始到当前数据的长度
-    unsigned char *bitmapadress = bitmap_adress;    	//bitmap adress
-    unsigned short bitmapnum;    		//bitmap adress
-
-    unsigned char remainder1;//余数1 针对preadress 之前的数据
-    unsigned char remainder2;//余数	 之后	
-    unsigned char pilenum1;//簇数    针对preadress 之前的数据  即 bitmap 位置
-    unsigned char pilenum2;//簇数
-	
-	unsigned char bitsave8_1[] = {0,0x80,0xC0,0xE0,0xF0,0xF8,0xFC,0xFE,0xFF};
-	unsigned char bitsave8_2[] = {0,0x01,0x03,0x07,0x0F,0x1F,0x3F,0x7F,0xFF};
-	
-	unsigned char addoneflag = 0;//
-	
-    while(itemnum)//按照目录数检索
+    switch (width)
     {
-        itemnum --;
-//
-        if(*adress == 0)
-        {
-        }
-        else if(*adress == 0xAA)
-        {	
-			//校验和---暂时屏蔽
-            // crcget = adress[IndexItemSize-1] + adress[IndexItemSize-2];
-            // crccalsulate = CRC16_Checkout(adress,sizeof(IndexItemSize - 2));
-            //满足校验
-			if(crccalsulate == crcget)
-            {
-                // *adress += IndexItemSize;		//下条索引
-                itemcount ++;						//当前数据数++
-                datalen = *(adress + 3) ;		//存储的数据长度+ 6
+    case sizeof(u8):
+        (*(u8*)src) |= (1UL<<(pos));
+        break;
 
-                saveprelen = *((unsigned char **)((adress + 4))) - datastartadress - 100;		//保存的数据起始地址到数据域开始长度
-                // saveprelen = saveprelen / PrePileSize;                                       //当前数据域前簇数量
-                if(saveprelen == 0)
-				{
-					remainder1 = 0;
-					pilenum1 = 0;
-				}
-				else if(saveprelen < PrePileSize)
-				{
-					remainder1 = 1;
-					pilenum1 = 0;
-				}
-				else
-				{
-					remainder1 	= (saveprelen/PrePileSize)%8;
-					if(saveprelen%PrePileSize > 0)
-						remainder1 ++;
-					
-					pilenum1 = (saveprelen/PrePileSize)/8; //bitmap 位置
-				}
-              //  *(bitmapadress + pilenum1) = bitsave8_1[remainder1];//写入bitmap值
-			  //写入bitmap 
-				if(datalen == 0)
-				{
-					//删除Index 操作
-				}
-				else if(datalen < PrePileSize)
-				{
-					remainder2 	= 1;
-					pilenum2 	= 0;
-					if((remainder1 == 1)&&(pilenum1 == 0))		//这种情况理论上不会出现
-					{
-						*(bitmapadress + pilenum1) = 0x03;						
-					}
-					else if((remainder1 > 1))
-					{
-						*(bitmapadress + pilenum1 + 1) = (bitsave8_2[remainder1]<<1) + 1;		
-					}
-					// *(bitmapadress + pilenum1) = bitsave8_2[remainder1];					
-				}
-                else    //datalen > PrePileSize
-				{
-					remainder2  = ((datalen ) / PrePileSize)%8;  	//多余数据簇数量--->修改为预先加上剩余簇处理更好点
-					if(datalen % PrePileSize)
-						remainder2 ++;
-					pilenum2 	= ((datalen )/ PrePileSize)/8;  	//数据簇数量	
-					
-					if((remainder2 == 0))			// 正好1个8位簇&&(pilenum2 == 1)
-					{
-						temp = 	8 - remainder1;
-						// for(temp2 = 0;temp2 < temp; temp2++)		
-						// {
-							*(bitmapadress + pilenum1) = ((*(bitmapadress + pilenum1))&(bitsave8_1[temp]));	//处理错误	！！	
-						// }
-						// pilenum2 --;
-						if(pilenum2 == 1)	//1 pile
-						{
-							*(bitmapadress + pilenum1 + 1) = bitsave8_2[remainder1];	
-						}
-						else				// piles
-						{
-							for(temp2 = 1; temp2 < pilenum2;temp2 ++)
-							{
-								*(bitmapadress + pilenum1 + temp2) = 0xff;		
-							}
-							*(bitmapadress + pilenum1 + 1 + temp2) = bitsave8_2[remainder1];	
-						}									
-					}
-					else if((remainder2 != 0))
-					{
-                        // if(remainder2 <= (8-remainder1))
-                        if(remainder2 <= (8-remainder1))
-						{
-                            for(temp3 = 0;temp3 < (8-remainder1);temp3++)
-							{
-								(*(bitmapadress + pilenum1)) = (*(bitmapadress + pilenum1))<<1;
-                                (*(bitmapadress + pilenum1))++;
-								
-							}	
-							// *(bitmapadress + pilenum1) = ((*(bitmapadress + pilenum1))&(bitsave8_1[8-remainder1]));	
-							temp = 	8 -  remainder1 - remainder2;//多余长度 或者是 剩余空间
-							
-							if(1 == pile)
-							{
-								
-							}
-							else
-							{
-								
-							}
-							
-						}
-						else
-						{
-							// *(bitmapadress + pilenum1) = ((*(bitmapadress + pilenum1))&(bitsave8_1[8-remainder1]));	
-							for(temp3 = 0;temp3 < (8-remainder1);temp3++)
-							{
-								(*(bitmapadress + pilenum1)) = (*(bitmapadress + pilenum1))<<1;
-                                (*(bitmapadress + pilenum1))++;
-							}	
-							temp = remainder2 - remainder1;//多余长度
-						}
-						// for(temp2 = 0;temp2 < temp; temp2++)		
-						// {
-							// *(bitmapadress + pilenum1) = ((*(bitmapadress + pilenum1))&(bitsave8_1[8-remainder1]));	//处理错误	！！
-						// }
-                        if((pilenum2 != 0)&&(remainder2 <= (8-remainder1)))
-                        {
-                            for(temp2 = 0; temp2 < (pilenum2);temp2 ++)
-                            {
-                                *(bitmapadress + pilenum1 + temp2 + 1) = 0xff;
-                            }
-                        }
-                        if((temp != 0)&&(pilenum2>1))//多余长度的处理
-						{
-							for(temp3 = 0;temp3 < temp; temp3++)		
-							{
-								(*(bitmapadress + pilenum1 + temp2 + 1)) = (*(bitmapadress + pilenum1 + temp2 + 1)) << 1;
-                                (*(bitmapadress + pilenum1 + temp2 + 1)) ++ ;
-							}							
-						}				
-					}
-					else
-					{
-						printf("???");
-					}
-					
-					// 先保存整8簇
-					// temp =1;
-					// while(pilenum2)
-					// {
-						// pilenum2 -- ;
-						// *(bitmapadress + pilenum1 + temp) = 0xFF;
-						// temp++;					
-					// }
-					// *(bitmapadress + pilenum1 + temp) = bitsave8_2[remainder1];				
-				}
-                printf("*bitmapadress %d\n",*bitmapadress);
-                printf("*bitmapadress %d\n",*(bitmapadress + 1));
-                printf("*bitmapadress %d\n",*(bitmapadress + 2));
-                printf("*bitmapadress %d\n",*(bitmapadress + 3));
-                printf("*bitmapadress %d\n",*(bitmapadress + 4));
-                printf("*bitmapadress %d\n",*(bitmapadress + 5));
-                printf("*bitmapadress %d\n",*(bitmapadress + 6));
-                printf("*bitmapadress %d\n",*(bitmapadress + 7));
-			}
-            else
-            {
-                printf("CRC Error\n");
-                //如何处理
-            }
-            //(数据长度计算)
-        }
+    case sizeof(u16):
+        (*(u16*)src) |= (1UL<<(pos));
+        break;
+
+    case sizeof(u32):
+        (*(u32*)src) |= (1ULL<<(pos));
+        break;
+
+    case sizeof(u64):
+        (*(u64*)src) |= (1ULL<<(pos));
+        break;
+
+    default:
+
+        break;
+    }
+}
+
+/***************************************************************************************************
+*\Function      BitPointClr
+*\Description   将src指向数据的第pos位置无效。
+*\Parameter     src     数据地址
+*\Parameter     pos     位
+*\Parameter     width   数据宽度
+*\Return        void
+*               创建函数。
+***************************************************************************************************/
+void BitPointClr(void* src, u8 pos, u8 width)
+{
+    switch (width)
+    {
+    case sizeof(u8):
+        (*(u8*)src) &= ~(1UL<<(pos));
+        break;
+
+    case sizeof(u16):
+        (*(u16*)src) &= ~(1UL<<(pos));
+        break;
+
+    case sizeof(u32):
+        (*(u32*)src) &= ~(1ULL<<(pos));
+        break;
+
+    case sizeof(u64):
+        (*(u64*)src) &= ~(1ULL<<(pos));
+        break;
+
+    default:
+
+        break;
+    }
+}
+
+/***************************************************************************************************
+*\Function      BitPointNot
+*\Description   将src指向数据的第pos位取反。
+*\Parameter     src     数据地址
+*\Parameter     pos     位
+*\Parameter     width   数据宽度
+*\Return        void
+*               创建函数。
+***************************************************************************************************/
+void BitPointNot(void* src, u8 pos, u8 width)
+{
+    switch (width)
+    {
+    case sizeof(u8):
+        (*(u8*)src) ^= (1UL<<(pos));
+        break;
+
+    case sizeof(u16):
+        (*(u16*)src) ^= (1UL<<(pos));
+        break;
+
+    case sizeof(u32):
+        (*(u32*)src) ^= (1ULL<<(pos));
+        break;
+
+    case sizeof(u64):
+        (*(u64*)src) ^= (1ULL<<(pos));
+        break;
+
+    default:
+
+        break;
+    }
+}
+
+/***************************************************************************************************
+*\Function      BitGet
+*\Description   返回value第POS位的值。
+*\Parameter     value     数据地址
+*\Parameter     pos     位
+*\Return        u8
+*               创建函数。
+***************************************************************************************************/
+u8 BitGet(u64 value, u8 pos)
+{
+    return (value >> pos) & 1;
+}
+
+/***************************************************************************************************
+*\Function      BitValueSet
+*\Description   返回value的第pos位置有效后的值。
+*\Parameter     value       数据地址
+*\Parameter     pos         位
+*\Return        u32
+*               创建函数。
+***************************************************************************************************/
+u64 BitValueSet(u64 value, u8 pos)
+{
+    return (value) |= (1ULL<<(pos));
+}
+
+/***************************************************************************************************
+*\Function      BitValueClr
+*\Description   返回value第pos位置无效后的值。
+*\Parameter     value     数据地址
+*\Parameter     pos       位
+*\Return        u32
+*               创建函数。
+***************************************************************************************************/
+u64 BitValueClr(u64 value, u8 pos)
+{
+    return (value) &= ~(1ULL<<pos);
+}
+
+/***************************************************************************************************
+*\Function      BitValueNot
+*\Description   返回value第POS位取反后的值。
+*\Parameter     value       数据地址
+*\Parameter     pos         位
+*\Return        u32
+*               创建函数。
+***************************************************************************************************/
+u64 BitValueNot(u64 value, u8 pos)
+{
+    return (value) ^= (1ULL<<pos);
+}
+
+/***************************************************************************************************
+*\Function      BitValueGetSetNum
+*\Description   返回有效位的数目。
+*\Parameter     value     数据地址
+*\Return        u8
+*               创建函数。
+***************************************************************************************************/
+u8 BitValueGetSetNum(u32 value)
+{
+    value = (value & 0x55555555) + ((value >> 1)  & 0x55555555);
+    value = (value & 0x33333333) + ((value >> 2)  & 0x33333333);
+    value = (value & 0x0F0F0F0F) + ((value >> 4)  & 0x0F0F0F0F);
+    value = (value & 0x00FF00FF) + ((value >> 8)  & 0x00FF00FF);
+    value = (value & 0x0000FFFF) + ((value >> 16) & 0x0000FFFF);
+    return (u8)value;
+}
+
+/***************************************************************************************************
+*\Function      BitValueU8Reverse
+*\Description   返回8位value逆序后的值。
+*\Parameter     value     数据地址
+*\Return        u8
+*               创建函数。
+***************************************************************************************************/
+u8 BitValueU8Reverse(u8 value)
+{
+    value = (value & 0x55) << 1  | (value & 0xAA) >> 1;
+    value = (value & 0x33) << 2  | (value & 0xCC) >> 2;
+    value = (value & 0x0F) << 4  | (value & 0xF0) >> 4;
+
+    return value;
+}
+
+/***************************************************************************************************
+*\Function      BitValueU16Reverse
+*\Description   返回16位value逆序后的值。
+*\Parameter     value     数据地址
+*\Return        u16
+*               创建函数。
+***************************************************************************************************/
+u16 BitValueU16Reverse(u16 value)
+{
+    value = (value & 0x5555) << 1  | (value & 0xAAAA) >> 1;
+    value = (value & 0x3333) << 2  | (value & 0xCCCC) >> 2;
+    value = (value & 0x0F0F) << 4  | (value & 0xF0F0) >> 4;
+    value = (value & 0x00FF) << 8  | (value & 0xFF00) >> 8;
+
+    return value;
+}
+
+/***************************************************************************************************
+*\Function      BitValueU32Reverse
+*\Description   返回32位value逆序后的值。
+*\Parameter     value     数据地址
+*\Return        u32
+***************************************************************************************************/
+u32 BitValueU32Reverse(u32 value)
+{
+    value = (value & 0x55555555) << 1  | (value & 0xAAAAAAAA) >> 1;
+    value = (value & 0x33333333) << 2  | (value & 0xCCCCCCCC) >> 2;
+    value = (value & 0x0F0F0F0F) << 4  | (value & 0xF0F0F0F0) >> 4;
+    value = (value & 0x00FF00FF) << 8  | (value & 0xFF00FF00) >> 8;
+    value = (value & 0x0000FFFF) << 16 | (value & 0xFFFF0000) >> 16;
+
+    return value;
+}
+
+/***************************************************************************************************
+*\Function      BitValueReverse
+*\Description   返回value的低len位反转值。
+*\Parameter     value   数据地址
+*\Parameter     len     低len位(0~32)
+*\Return        u32
+*\Note          1) Example: BitValueReverse(0x3e23L, 3) == 0x3e26
+*               创建函数。
+***************************************************************************************************/
+u64 BitValueReverse(u64 value, u8 len)
+{
+    u64 t = value;      /*参考*/
+    u8  i = 0x00;
+
+    for (i = 0; i < len; i++)
+    {
+        if (t & 1ULL)
+            value |=  BitMask((len-1)-i);
         else
-        {
-            printf("Scan Error\n");
-            //纠错处理
-        }		
-		*adress += IndexItemSize;//增加1条距离 下条索引
-        printf("itemcount %d\n",itemcount);
+            value &= ~BitMask((len-1)-i);
+        t >>= 1;
     }
-    return itemcount;
-}
-//剩余空间检查
-//数据保存
-unsigned char  DataSave(unsigned char* data_save_start_adress)
-{
-	//
 
+    return value;
+}
 
-    return 1;
-}
-//索引创建
-unsigned char  IndexCreate()
+/***************************************************************************************************
+*\Function      ByteArrayBitSet
+*\Description   设置字节数组中的某一位为1。
+*\Parameter     data    字节数组
+*\Parameter     index   要设置位的位置，从0开始。
+*\Return        void
+*               创建函数
+***************************************************************************************************/
+void ByteArrayBitSet(u8* data, u16 index)
 {
+    data[index >> 3] |= (1 << (index & 7));
+}
 
-    return 1;
-}
-//bitnumreturn 
-unsigned char  BitNumReturn(unsigned char bitvalue,unsigned char * vector)
+/***************************************************************************************************
+*\Function      ByteArrayBitClr
+*\Description   清除字节数组中的某一位为0。
+*\Parameter     data    字节数组
+*\Parameter     index   要清除的位的位置，从0开始。
+*\Return        void
+*               创建函数
+***************************************************************************************************/
+void ByteArrayBitClr(u8* data, u16 index)
 {
-	unsigned char num;	
-	switch(bitvalue)
-	{
-		case 0x01:	num = 7; *vector = LEFT;	break; 
-		case 0x80:	num = 7; *vector = RIGHT;	break;
-		case 0x03:	num = 6; *vector = LEFT;	break; 
-		case 0xC0:	num = 6; *vector = RIGHT;	break;
-		case 0x07:	num = 5; *vector = LEFT;	break; 
-		case 0xE0:	num = 5; *vector = RIGHT;	break;
-		case 0x0F:	num = 4; *vector = LEFT;	break; 
-		case 0xF0:	num = 4; *vector = RIGHT;	break;
-		case 0x1F:	num = 3; *vector = LEFT;	break; 
-		case 0xF8:	num = 3; *vector = RIGHT;	break;
-		case 0x3F:	num = 2; *vector = LEFT;	break; 
-		case 0xFC:	num = 2; *vector = RIGHT;	break;
-		case 0x7F:	num = 1; *vector = LEFT;	break; 
-		case 0xFE:	num = 1; *vector = RIGHT;	break;
-		default: 	num = 0;					break;
-	}
-	
-    return num;
+    data[index >> 3] &= ~(1 << (index & 7));
 }
-/*************
-Parameters	:bitmapnum 	bitnum  vector *dataadress
-Return 		:save dataadress
-*************/
-unsigned char *bitmapToadress(unsigned char bitmapnum,unsigned char bitnum,unsigned char vector,unsigned char *dataadress )
-{
-	char *returnadress;
-    returnadress =dataadress + ( bitmapnum * 8 + bitnum)* PrePileSize;//
-	//超界判断
-	//多余pile处理
-	//申请时应靠近已有的空间
-	return returnadress;
-}
-/*************
-Parameters	:bitmapnum 	bitnum  vector *dataadress
-Return 		:save dataadress
-*************/
-//存储空间查找                        
-	//bitma地址 所需空间长度 存储区域地址
-unsigned char  *MallocCreate(unsigned char* bitmapadress,unsigned char spacelen,unsigned char* dataadress)
-{
-    unsigned char len = 0;
-    unsigned char bitmapnum;
-    unsigned char bitnum;
-    unsigned char bitnum2;
-	unsigned char *vector;//存储方向
-	unsigned char *returnadress;
-	unsigned char datasaverecord;
-	
-	//存储所需空间
-	unsigned char needspace = (spacelen / PrePileSize);
-    if((spacelen % PrePileSize)>0)
-		needspace++;
-	
-	while(len < BITMAPLEN)
-    {	
 
-		//空间寻找	
-		if(0xFF == *(bitmapadress + len))
-		{
-					
-		}
-		else
-		{	//
-			bitnum = BitNumReturn(*(bitmapadress + len),vector);
-			if(bitnum >= needspace)
-			{
-				if(vector == LEFT)
-					;
-				else if(vector == RIGHT)
-					bitnum = 8-bitnum;
-				
-				*returnadress=bitmapToadress(len,bitnum,0,dataadress);
-				return returnadress;
-			}
-			else
-			{	
-				if(0xFF == *(bitmapadress + len+1))
-				{}
-				// bitnum2 = BitNumReturn(*(bitmapadress + len + 1),vector);
-				
-			}		
-		}
-		// if((8 - *(bitmapadress + len)) >= needspace)//剩余空间bitmap 1元素就满足时
-		// {
-			
-			// return len; 			
-		// }
-		// else()
-		// {
-			
-			
-		// }
-		// else
-		// {
-			
-		// }
-		len ++;
-    }
-	
-    return 0;//返回map编号
-}
-//数据查找
-unsigned char DataFind()
+/***************************************************************************************************
+*\Function      ByteArrayBitGet
+*\Description   获取字节数组中的某一位的状态。
+*\Parameter     data    字节数组
+*\Parameter     index   希望获得的位的位置，从0开始
+*\Return        bool    位为1时返回TRUE，位为0时返回FALSE。
+*               创建函数
+***************************************************************************************************/
+bool ByteArrayBitGet(u8* data, u16 index)
 {
-
-    return 1;
-}
-//数据替换
-unsigned char DataReplace()
-{
-
-    return 1;
-}
-//数据删除---数据索引移动
-unsigned char DataDelete()
-{
-
-    return 1;
-}
-//数据增加
-unsigned char DataAdd()
-{
-
-    return 1;
-}
-//CRC
-unsigned int CRC16_Checkout ( unsigned char *puchMsg, unsigned int usDataLen )
-{
-    unsigned int i,j,crc_reg,check;
-    crc_reg = 0xFFFF;
-    for(i=0;i<usDataLen;i++)
+    if (data[index >> 3] & (1 << (index & 7)))
     {
-        crc_reg = (crc_reg>>8) ^ puchMsg[i];
-        for(j=0;j<8;j++)
-        {
-            check = crc_reg & 0x0001;
-            crc_reg >>= 1;
-            if(check==0x0001)
-            {
-                crc_reg ^= 0xA001;
-            }
-        }
+        return TRUE;
     }
-    return crc_reg;
+    else
+    {
+        return FALSE;
+    }
 }
+
+
+/***************************************************************************************************
+*\Function      ByteU32ArrayBitSet
+*\Description   设置字节数组中的某一位为1。
+*\Parameter     data    字节数组
+*\Parameter     index   要设置位的位置，从0开始。
+*\Return        void
+*               创建函数
+***************************************************************************************************/
+void ByteU32ArrayBitSet(u32* data, u16 index)
+{
+    data[index / 32] |= (1 << (index % 32));
+}
+
+/***************************************************************************************************
+*\Function      ByteU32ArrayBitClr
+*\Description   清除字节数组中的某一位为0。
+*\Parameter     data    字节数组
+*\Parameter     index   要清除的位的位置，从0开始。
+*\Return        void
+*               创建函数
+***************************************************************************************************/
+void ByteU32ArrayBitClr(u32* data, u16 index)
+{
+    data[index / 32] &= ~(1 << (index % 32));
+}
+
+/***************************************************************************************************
+*\Function      ByteU32ArrayBitGet
+*\Description   获取字节数组中的某一位的状态。
+*\Parameter     data    字节数组
+*\Parameter     index   希望获得的位的位置，从0开始
+*\Return        bool    位为1时返回TRUE，位为0时返回FALSE。
+*               创建函数
+***************************************************************************************************/
+bool ByteU32ArrayBitGet(u32* data, u16 index)
+{
+    if (data[index / 32] & (1 << (index % 32)))
+    {
+        return TRUE;
+    }
+    else
+    {
+        return FALSE;
+    }
+}
+
+static const u8 LSBTable[32] =
+{
+    0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
+    31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
+};
+
+/***************************************************************************************************
+*\Function      BitTrailingZeroCount
+*\Description   从低位到高位寻找第一个置1的位索引。
+*\Parameter     data    要找的目标
+*\Parameter     pos     置1的位的索引(0～31）。
+*\Return        bool    若参数正确且找到置1的位，则返回TRUE，否则返回FALSE。
+*               创建函数。
+***************************************************************************************************/
+bool BitTrailingZeroCount(u32 data, u8* pos)
+{
+    if (!data || !pos)
+    {
+        return FALSE;
+    }
+
+    *pos = LSBTable[(((data & -(s32)data) * 0x077CB531UL)) >> 27];
+
+    return TRUE;
+}
+
+/***************************************************************************************************
+*\Function      BitTrailingZeroCountWithStart
+*\Description   从起始位start_pos起，从低位到高位寻找第一个置1的位索引，包含start_pos。
+*\Parameter     data            要找的目标
+*\Parameter     start_pos       起始位(0～31）
+*\Parameter     pos             置1的位的索引(0～31）
+*\Return        bool            若参数正确且找到置1的位，则返回TRUE，否则返回FALSE。
+*\Note
+*               创建函数。
+***************************************************************************************************/
+bool BitTrailingZeroCountWithStart(u32 data, u8 start_pos, u8* pos)
+{
+    /*屏蔽低位*/
+    data &= (~0ULL) << (start_pos);
+
+    if (!data || !pos)
+    {
+        return FALSE;
+    }
+
+    *pos = LSBTable[(((data & -(s32)data) * 0x077CB531UL)) >> 27];
+
+    return TRUE;
+}
+
+/***************************************************************************************************
+*\Function      BitTrailingZeroCountWithEnd
+*\Description   到终止位end_pos止，从低位到高位寻找第一个置1的位索引，包含end_pos。
+*\Parameter     data            要找的目标
+*\Parameter     start_pos       终止位(0～31）
+*\Parameter     pos             置1的位的索引(0～31）
+*\Return        bool            若参数正确且找到置1的位，则返回TRUE，否则返回FALSE。
+*\Note          该函数有问题，对立即数位移变量时，当变量大于等于32时位移无效，导致0UL写法存在问题，待重写（121212）
+*               创建函数。
+***************************************************************************************************/
+bool BitTrailingZeroCountWithEnd(u32 data, u8 end_pos, u8* pos)
+{
+    bool ok = FALSE;
+    while(ok == FALSE);
+
+    /*屏蔽低位*/
+    data &= (~0ULL) >> (32 - end_pos + 1);
+
+    if (!data || !pos)
+    {
+        return FALSE;
+    }
+
+    *pos = LSBTable[(((data & -(s32)data) * 0x077CB531UL)) >> 27];
+    return TRUE;
+}
+
+int main()
+{
+
+
+	return 1;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
