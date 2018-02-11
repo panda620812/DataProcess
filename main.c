@@ -39,7 +39,10 @@ IndexItemType IndexItem;
 	//Index 条数 长度 起始结束地址
 	//Data 	Area
 	//簇大小
-
+void ByteU32ArrayBitClr(unsigned char* data, u16 index)
+{
+    data[index / 8] &= ~(1 << (index % 8));
+}
 unsigned char ByteU8ArrayBitGet(u8* data, u16 index)
 {
     if (data[index / 8] & (1 << (index % 8)))
@@ -59,8 +62,7 @@ void ByteU8ArrayBitSet(u8* data, u32 index)
 
 void BytesU8ArrayBitSet(u8* data, u32 index,unsigned char num)
 {
-	
-    data[index / 8] |=   (1 << (index % 8));
+	data[index / 8] |=   (1 << (index % 8));
 }
 
 unsigned char AreaInit(void)
@@ -75,6 +77,7 @@ unsigned short IndexInit(unsigned char * bitmap)
 	unsigned int data_len = 0;
 	unsigned char temp8 = 0;
 	unsigned char temp8_2 = 0;
+
     for(;temp8 < INDEX_NUM;temp8 ++)
 	{
 		if(0XAA == DataSaveArea[i * INDEX_SIZE])
@@ -122,7 +125,23 @@ unsigned char IndexCreat(unsigned char * indexstartadress,unsigned char *savedat
 {
 	time_t t;
 	time(&t); 
-	
+	unsigned short temp16;
+	//NULL Index Find
+	for(temp16 = 0;temp16 < INDEX_NUM;temp16++)
+	{
+		if((* (indexstartadress + temp16*INDEX_SIZE)) == 0xAA)
+		{
+			
+		}
+		else
+		{
+			if((*(indexstartadress + 2)) == 0x00)//使用标记位 IndexItem.usestate
+			//额外的校验，待添加
+			break;
+		}
+		temp16 += INDEX_SIZE;	
+	}
+	//
 	{
 		IndexItem.startflag 	= 0xAA;
 		IndexItem.function 		= 0x01;
@@ -132,7 +151,7 @@ unsigned char IndexCreat(unsigned char * indexstartadress,unsigned char *savedat
 		IndexItem.Time 			= t;
 		IndexItem.sumcheck		= 0x00FF;//待修改
 	}
-    memcpy(indexstartadress,&IndexItem,index_num);
+    memcpy(indexstartadress + temp16*INDEX_SIZE,&IndexItem,index_num);
 	index_num ++ ;
 	printf("Index++\n");
 }
@@ -164,10 +183,25 @@ unsigned char DataSave(	unsigned char 	* datasaveArea,	// 数据域起始地址
 	//3
     IndexCreat(datasaveArea,savedatabuf,bitmapadress,0);
 }
+unsigned char DataDelete(	unsigned char 	* datasaveArea,	// 	数据域起始地址
+							unsigned short 	index_num,		//	0 起始数
+                            unsigned char	* bitmap		// 	位图地址
+						)
+{
 
+	unsigned short bitmapadress = *((unsigned int *)(datasaveArea + index_num*INDEX_SIZE + 4));//保存的位置
+	unsigned short bitmaplengh 	= (*((unsigned char *)(datasaveArea + index_num*INDEX_SIZE + 3)))/8;//（保存的数据长度/8）
+	unsigned char temp;
+	//Index Delete
+	memset(datasaveArea,0,INDEX_SIZE);
+	//bitmap Delete
+	for(temp = 0;temp < bitmaplengh;temp++) 
+		ByteU32ArrayBitClr(bitmap,bitmapadress + temp);
+}
 unsigned char main()
 {
-	unsigned short 	IndexNum;
+	unsigned short 	IndexSumNum;
+	unsigned short 	DeleteIndexNum = 0;
 	unsigned char 	temp = 0;
     unsigned char 	BitMap[10] = {0};
 	unsigned char 	saveBuf[60] = {1,2,3,4,5,4};
@@ -175,9 +209,9 @@ unsigned char main()
 	unsigned short 	mallocadress;// bitmap
 	unsigned short 	dataadress;// dataArea
 	
-    IndexNum = IndexInit(BitMap);
+    IndexSumNum = IndexInit(BitMap);
 	
-	printf("IndexNum %d \n",IndexNum);
+	printf("IndexSumNum %d \n",IndexSumNum);
     printf("DataAREASIZE %d \n",DataAREASIZE);
     printf("PILENUM/8 %d \n",PILENUM/8);
 	for(temp = 0;temp < (PILENUM / 8);temp++)
@@ -198,6 +232,16 @@ unsigned char main()
 	for(temp = 0;temp < (PILENUM / 8);temp++)
         printf("BitMap %d %d\n",temp,*(BitMap + temp));	
 	
+	printf("IndexSumNum %d \n",IndexInit(BitMap));
+	
+	//查询
+	
+	//排序
+	
+	//删除
+	DataDelete(DataSaveArea,DeleteIndexNum,BitMap);
+    i = 0;
+	printf("IndexSumNum %d \n",IndexInit(BitMap));	
     return 1;
 
 }
@@ -517,18 +561,6 @@ void ByteU32ArrayBitSet(u32* data, u16 index)
     data[index / 32] |= (1 << (index % 32));
 }
 
-/***************************************************************************************************
-*\Function      ByteU32ArrayBitClr
-*\Description   清除字节数组中的某一位为0。
-*\Parameter     data    字节数组
-*\Parameter     index   要清除的位的位置，从0开始。
-*\Return        void
-*               创建函数
-***************************************************************************************************/
-void ByteU32ArrayBitClr(u32* data, u16 index)
-{
-    data[index / 32] &= ~(1 << (index % 32));
-}
 
 /***************************************************************************************************
 *\Function      ByteU32ArrayBitGet
