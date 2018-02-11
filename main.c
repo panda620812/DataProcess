@@ -12,30 +12,119 @@
 # define u32	unsigned int
 # define u64 	unsigned long
 # define FALSE 	0
-# define TRUE 	1 
-enum
-{
-	FALSE;
-	TRUE;
-}bool;
+# define TRUE 	1
 
-bool BOOL;
+// enum
+// {
+	// FALSE;
+    // TRUE
+// }bool;
 
-unsigned char AreaInit(void)
+//bool BOOL;
+#pragma pack(1)
+typedef struct
 {
+    unsigned char     	startflag;
+    unsigned char     	function;
+    unsigned char     	usestate;
+	char             	datalen;
+    // char*            dataadress;
+	unsigned int 		DataPILENUM;
+    unsigned short     	sumcheck;
+
+    // unsigned char;
+}IndexItemType;
+
+#pragma pack()
+
+# define PILESIZE 10
+# define AREASIZE 500
+# define INDEXAREASIZE 100
+# define DataAREASIZE (AREASIZE-INDEXAREASIZE)
+
+# define INDEX_SIZE 10
+# define INDEX_NUM 	(INDEXAREASIZE/INDEX_SIZE)
+
+# define PILENUM (DataAREASIZE / PILESIZE)//bit 数//簇数量	
+
 	//标记检测 --- 是否与当前软件设置一致
 	//版本号
 	//开始
 	//Index 条数 长度 起始结束地址
-	//Data 	
+	//Data 	Area
 	//簇大小
+
+unsigned char DataSaveArea[500] = {};	
+unsigned char i = 0;	
+void ByteU8ArrayBitSet(u8* data, u32 index)
+{
+    data[index / 8] |=   (1 << (index % 8));
+}
+
+void BytesU8ArrayBitSet(u8* data, u32 index,unsigned char num)
+{
 	
+    data[index / 8] |=   (1 << (index % 8));
+}
+
+unsigned char AreaInit(void)
+{
 	
 	
 	
 	
 	//写入	
 }
+
+unsigned short IndexInit(unsigned char * bitmap)
+{
+	unsigned char index_num = 0;
+	unsigned int data_len = 0;
+	unsigned char temp8 = 0;
+	unsigned char temp8_2 = 0;
+    for(;temp8 < INDEX_NUM;temp8 ++)
+	{
+		if(0XAA == DataSaveArea[i * INDEX_SIZE])
+		{
+			index_num ++ ;
+			data_len = *((unsigned int *)(DataSaveArea[i * INDEX_SIZE + 4]));
+			for (;temp8_2 < data_len;temp8_2++)
+			{			
+				ByteU8ArrayBitSet(bitmap,data_len + temp8_2);//bitmap FULL
+			}
+		}
+		i++;		
+	}
+	return index_num;
+}
+unsigned char SaveMALLOC()
+{
+	
+	
+}
+
+
+unsigned char main()
+{
+	unsigned short 	IndexNum;
+	unsigned char 	temp = 0;
+    unsigned char 	BitMap[10] = {0};
+	
+    IndexNum = IndexInit(BitMap);
+	printf("IndexNum %d \n",IndexNum);
+    printf("DataAREASIZE %d \n",DataAREASIZE);
+    printf("PILENUM/8 %d \n",PILENUM/8);
+	for(;temp < (PILENUM / 8);temp++)
+	{
+        printf("BitMap %d %d\n",temp,*(BitMap + temp));
+    }
+    return 1;
+
+}
+
+
+
+
 
 /***************************************************************************************************
 *\Function      BitPointSet
@@ -46,31 +135,31 @@ unsigned char AreaInit(void)
 *\Return        void
 *               创建函数。
 ***************************************************************************************************/
-void BitPointSet(void* src, u8 pos, u8 width)
-{
-    switch (width)
-    {
-    case sizeof(u8):
-        (*(u8*)src) |= (1UL<<(pos));
-        break;
+// void BitPointSet(void* src, u8 pos, u8 width)
+// {
+    // switch (width)
+    // {
+        // case sizeof(u8):
+            // (*(u8*)src) |= (1UL<<(pos));
+            // break;
 
-    case sizeof(u16):
-        (*(u16*)src) |= (1UL<<(pos));
-        break;
+        // case sizeof(u16):
+            // (*(u16*)src) |= (1UL<<(pos));
+            // break;
 
-    case sizeof(u32):
-        (*(u32*)src) |= (1ULL<<(pos));
-        break;
+        // case sizeof(u32):
+            // (*(u32*)src) |= (1ULL<<(pos));
+            // break;
 
-    case sizeof(u64):
-        (*(u64*)src) |= (1ULL<<(pos));
-        break;
+        // case sizeof(u64):
+            // (*(u64*)src) |= (1ULL<<(pos));
+            // break;
 
-    default:
+        // default:
 
-        break;
-    }
-}
+            // break;
+    // }
+// }
 
 /***************************************************************************************************
 *\Function      BitPointClr
@@ -81,31 +170,31 @@ void BitPointSet(void* src, u8 pos, u8 width)
 *\Return        void
 *               创建函数。
 ***************************************************************************************************/
-void BitPointClr(void* src, u8 pos, u8 width)
-{
-    switch (width)
-    {
-    case sizeof(u8):
-        (*(u8*)src) &= ~(1UL<<(pos));
-        break;
+// void BitPointClr(void* src, u8 pos, u8 width)
+// {
+    // switch (width)
+    // {
+    // case sizeof(u8):
+        // (*(u8*)src) &= ~(1UL<<(pos));
+        // break;
 
-    case sizeof(u16):
-        (*(u16*)src) &= ~(1UL<<(pos));
-        break;
+    // case sizeof(u16):
+        // (*(u16*)src) &= ~(1UL<<(pos));
+        // break;
 
-    case sizeof(u32):
-        (*(u32*)src) &= ~(1ULL<<(pos));
-        break;
+    // case sizeof(u32):
+        // (*(u32*)src) &= ~(1ULL<<(pos));
+        // break;
 
-    case sizeof(u64):
-        (*(u64*)src) &= ~(1ULL<<(pos));
-        break;
+    // case sizeof(u64):
+        // (*(u64*)src) &= ~(1ULL<<(pos));
+        // break;
 
-    default:
+    // default:
 
-        break;
-    }
-}
+        // break;
+    // }
+// }
 
 /***************************************************************************************************
 *\Function      BitPointNot
@@ -116,31 +205,31 @@ void BitPointClr(void* src, u8 pos, u8 width)
 *\Return        void
 *               创建函数。
 ***************************************************************************************************/
-void BitPointNot(void* src, u8 pos, u8 width)
-{
-    switch (width)
-    {
-    case sizeof(u8):
-        (*(u8*)src) ^= (1UL<<(pos));
-        break;
+// void BitPointNot(void* src, u8 pos, u8 width)
+// {
+    // switch (width)
+    // {
+    // case sizeof(u8):
+        // (*(u8*)src) ^= (1UL<<(pos));
+        // break;
 
-    case sizeof(u16):
-        (*(u16*)src) ^= (1UL<<(pos));
-        break;
+    // case sizeof(u16):
+        // (*(u16*)src) ^= (1UL<<(pos));
+        // break;
 
-    case sizeof(u32):
-        (*(u32*)src) ^= (1ULL<<(pos));
-        break;
+    // case sizeof(u32):
+        // (*(u32*)src) ^= (1ULL<<(pos));
+        // break;
 
-    case sizeof(u64):
-        (*(u64*)src) ^= (1ULL<<(pos));
-        break;
+    // case sizeof(u64):
+        // (*(u64*)src) ^= (1ULL<<(pos));
+        // break;
 
-    default:
+    // default:
 
-        break;
-    }
-}
+        // break;
+    // }
+// }
 
 /***************************************************************************************************
 *\Function      BitGet
@@ -270,9 +359,10 @@ u32 BitValueU32Reverse(u32 value)
 *\Note          1) Example: BitValueReverse(0x3e23L, 3) == 0x3e26
 *               创建函数。
 ***************************************************************************************************/
+/*
 u64 BitValueReverse(u64 value, u8 len)
 {
-    u64 t = value;      /*参考*/
+    u64 t = value;
     u8  i = 0x00;
 
     for (i = 0; i < len; i++)
@@ -286,7 +376,7 @@ u64 BitValueReverse(u64 value, u8 len)
 
     return value;
 }
-
+*/
 /***************************************************************************************************
 *\Function      ByteArrayBitSet
 *\Description   设置字节数组中的某一位为1。
@@ -321,7 +411,7 @@ void ByteArrayBitClr(u8* data, u16 index)
 *\Return        bool    位为1时返回TRUE，位为0时返回FALSE。
 *               创建函数
 ***************************************************************************************************/
-bool ByteArrayBitGet(u8* data, u16 index)
+unsigned char ByteArrayBitGet(u8* data, u16 index)
 {
     if (data[index >> 3] & (1 << (index & 7)))
     {
@@ -368,17 +458,17 @@ void ByteU32ArrayBitClr(u32* data, u16 index)
 *\Return        bool    位为1时返回TRUE，位为0时返回FALSE。
 *               创建函数
 ***************************************************************************************************/
-bool ByteU32ArrayBitGet(u32* data, u16 index)
-{
-    if (data[index / 32] & (1 << (index % 32)))
-    {
-        return TRUE;
-    }
-    else
-    {
-        return FALSE;
-    }
-}
+// bool ByteU32ArrayBitGet(u32* data, u16 index)
+// {
+    // if (data[index / 32] & (1 << (index % 32)))
+    // {
+        // return TRUE;
+    // }
+    // else
+    // {
+        // return FALSE;
+    // }
+// }
 int findNumberOfTrailingZeros(unsigned int v)
 {
     static const int MultiplyDeBruijnBitPosition[32] =
@@ -386,7 +476,7 @@ int findNumberOfTrailingZeros(unsigned int v)
         0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
         31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
     };
-    return MultiplyDeBruijnBitPosition[((uint32_t)((v & -v) * 0x077CB531U)) >> 27];
+    return MultiplyDeBruijnBitPosition[((unsigned int)((v & -v) * 0x077CB531U)) >> 27];
 }
 
 
@@ -404,14 +494,14 @@ static const u8 LSBTable[32] =
 *\Return        bool    若参数正确且找到置1的位，则返回TRUE，否则返回FALSE。
 *               创建函数。
 ***************************************************************************************************/
-bool BitTrailingZeroCount(u32 data, u8* pos)
+unsigned char  BitTrailingZeroCount(u32 data, u8* pos)
 {
     if (!data || !pos)
     {
         return FALSE;
     }
 
-    *pos = LSBTable[(((data & -(s32)data) * 0x077CB531UL)) >> 27];
+    *pos = LSBTable[(((data & -(signed int)data) * 0x077CB531UL)) >> 27];
 
     return TRUE;
 }
@@ -426,7 +516,7 @@ bool BitTrailingZeroCount(u32 data, u8* pos)
 *\Note
 *               创建函数。
 ***************************************************************************************************/
-bool BitTrailingZeroCountWithStart(u32 data, u8 start_pos, u8* pos)
+unsigned char  BitTrailingZeroCountWithStart(u32 data, u8 start_pos, u8* pos)
 {
     /*屏蔽低位*/
     data &= (~0ULL) << (start_pos);
@@ -436,7 +526,7 @@ bool BitTrailingZeroCountWithStart(u32 data, u8 start_pos, u8* pos)
         return FALSE;
     }
 
-    *pos = LSBTable[(((data & -(s32)data) * 0x077CB531UL)) >> 27];
+    *pos = LSBTable[(((data & -(signed int)data) * 0x077CB531UL)) >> 27];
 
     return TRUE;
 }
@@ -451,9 +541,9 @@ bool BitTrailingZeroCountWithStart(u32 data, u8 start_pos, u8* pos)
 *\Note          该函数有问题，对立即数位移变量时，当变量大于等于32时位移无效，导致0UL写法存在问题，待重写（121212）
 *               创建函数。
 ***************************************************************************************************/
-bool BitTrailingZeroCountWithEnd(u32 data, u8 end_pos, u8* pos)
+unsigned char BitTrailingZeroCountWithEnd(u32 data, u8 end_pos, u8* pos)
 {
-    bool ok = FALSE;
+    unsigned char ok = FALSE;
     while(ok == FALSE);
 
     /*屏蔽低位*/
@@ -464,15 +554,8 @@ bool BitTrailingZeroCountWithEnd(u32 data, u8 end_pos, u8* pos)
         return FALSE;
     }
 
-    *pos = LSBTable[(((data & -(s32)data) * 0x077CB531UL)) >> 27];
+    *pos = LSBTable[(((data & -(signed int)data) * 0x077CB531UL)) >> 27];
     return TRUE;
-}
-
-int main()
-{
-
-
-	return 1;
 }
 
 
