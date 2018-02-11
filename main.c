@@ -1,12 +1,5 @@
-/***************************************************************************************************
-*                    (c) Copyright 1992-2009 Embedded Products Research Center
-*                                       All Rights Reserved
-*
-*\File          usdl_bit.c
-*\Description   位操作模块，提供丰富的位操作函数
-*               创建文件。
-***************************************************************************************************/
 # include "stdio.h"
+
 # define u8 	unsigned char 
 # define u16 	unsigned short
 # define u32	unsigned int
@@ -14,35 +7,28 @@
 # define FALSE 	0
 # define TRUE 	1
 
-// enum
-// {
-	// FALSE;
-    // TRUE
-// }bool;
-
-//bool BOOL;
 #pragma pack(1)
 typedef struct
 {
     unsigned char     	startflag;
     unsigned char     	function;
-    unsigned char     	usestate;
-	char             	datalen;
-    // char*            dataadress;
-	unsigned int 		DataPILENUM;
+    unsigned char     	usestate;//0未使用 用途1 2 3
+	unsigned char       datalen;
+	unsigned int 		datapilenum;//对应地址
+	unsigned int 		Time;		//对应时间
     unsigned short     	sumcheck;
-
-    // unsigned char;
 }IndexItemType;
-
 #pragma pack()
-
+IndexItemType IndexItem;
 # define PILESIZE 10
 # define AREASIZE 500
 # define INDEXAREASIZE 100
 # define DataAREASIZE (AREASIZE-INDEXAREASIZE)
 
-# define INDEX_SIZE 10
+# define PREDATABITLEN 7 //bit 	BYTES = PREDATABITLEN*PILESIZE
+# define PREDATABYTESLEN PREDATABITLEN*PILESIZE  //bit 	BYTES = 
+
+# define INDEX_SIZE 14
 # define INDEX_NUM 	(INDEXAREASIZE/INDEX_SIZE)
 
 # define PILENUM (DataAREASIZE / PILESIZE)//bit 数//簇数量	
@@ -54,8 +40,18 @@ typedef struct
 	//Data 	Area
 	//簇大小
 
+unsigned char ByteU8ArrayBitGet(u8* data, u16 index)
+{
+    if (data[index / 8] & (1 << (index % 8)))
+        return TRUE;
+    else
+        return FALSE;
+}	
+	
 unsigned char DataSaveArea[500] = {};	
-unsigned char i = 0;	
+unsigned char i = 0;
+unsigned char index_num = 0;//Pre Index number
+	
 void ByteU8ArrayBitSet(u8* data, u32 index)
 {
     data[index / 8] |=   (1 << (index % 8));
@@ -70,15 +66,12 @@ void BytesU8ArrayBitSet(u8* data, u32 index,unsigned char num)
 unsigned char AreaInit(void)
 {
 	
-	
-	
-	
 	//写入	
 }
 
 unsigned short IndexInit(unsigned char * bitmap)
 {
-	unsigned char index_num = 0;
+
 	unsigned int data_len = 0;
 	unsigned char temp8 = 0;
 	unsigned char temp8_2 = 0;
@@ -86,6 +79,7 @@ unsigned short IndexInit(unsigned char * bitmap)
 	{
 		if(0XAA == DataSaveArea[i * INDEX_SIZE])
 		{
+			//CRC
 			index_num ++ ;
 			data_len = *((unsigned int *)(DataSaveArea[i * INDEX_SIZE + 4]));
 			for (;temp8_2 < data_len;temp8_2++)
@@ -97,27 +91,113 @@ unsigned short IndexInit(unsigned char * bitmap)
 	}
 	return index_num;
 }
-unsigned char SaveMALLOC()
+unsigned short AreaMALLOC(unsigned char * bitmap , unsigned short bitmaplengh ,unsigned char datalengh)
 {
+	unsigned short temp16 = 0;
+	unsigned short returnflag = 0;
+	unsigned short adress = 0;
+	unsigned char  templengh = 0;
 	
-	
+	for (;temp16 < bitmaplengh;temp16 ++)
+	{
+		returnflag = ByteU8ArrayBitGet(bitmap,temp16);
+		if(0 == returnflag)
+		{
+			adress = temp16;
+            templengh ++;
+			if(datalengh == templengh)
+			{
+                return adress +1 - datalengh ;
+			}
+		}
+		else
+		{
+			adress = 0;
+			templengh = 0;
+		}			
+	}
+	return 0xFFFF;
 }
+unsigned char IndexCreat(unsigned char * indexstartadress,unsigned char *savedatabuf,unsigned short bitmapadress,unsigned char flag)
+{
+	time_t t;
+	time(&t); 
+	
+	{
+		IndexItem.startflag 	= 0xAA;
+		IndexItem.function 		= 0x01;
+		IndexItem.usestate 		= 0x01;
+		IndexItem.datalen 		= ((strlen(savedatabuf))/PILESIZE);
+		IndexItem.datapilenum 	= bitmapadress;
+		IndexItem.Time 			= t;
+		IndexItem.sumcheck		= 0x00FF;//待修改
+	}
+    memcpy(indexstartadress,&IndexItem,index_num);
+	index_num ++ ;
+	printf("Index++\n");
+}
+/**/
+unsigned char DataSave(	unsigned char 	* datasaveArea,	// 数据域起始地址
+						unsigned short 	adresslen,		// 数据保存地址到起始地址距离
+						unsigned char	* bitmap,		// 位图地址
+						unsigned char 	* savedatabuf,	// 保存数据
+						unsigned char 	datalen,		// 数据长度
+						unsigned short 	bitmapadress)	// 保存的位图位置
+{
+	/*
+		1 datasave
+		2 bitmap refresh
+		3 index refresh
+	*/
+	unsigned short startadress = 0;
+	unsigned char temp8_2 = 0;
+	unsigned char temp8_3 = 0;
 
+	//1	数据域起始 + 目录域大小 + 到地址存储区域大小
+	memcpy(datasaveArea + INDEXAREASIZE +adresslen,savedatabuf,datalen);//待修改
+	//2
+	if((datalen%PILESIZE)!=0)
+		temp8_3 = 1;
+
+	for (;temp8_2 < ((datalen/PILESIZE)+temp8_3);temp8_2++)
+		ByteU8ArrayBitSet(bitmap,bitmapadress + temp8_2);//bitmap FULL
+	//3
+    IndexCreat(datasaveArea,savedatabuf,bitmapadress,0);
+}
 
 unsigned char main()
 {
 	unsigned short 	IndexNum;
 	unsigned char 	temp = 0;
     unsigned char 	BitMap[10] = {0};
+	unsigned char 	saveBuf[60] = {1,2,3,4,5,4};
+	
+	unsigned short 	mallocadress;// bitmap
+	unsigned short 	dataadress;// dataArea
 	
     IndexNum = IndexInit(BitMap);
+	
 	printf("IndexNum %d \n",IndexNum);
     printf("DataAREASIZE %d \n",DataAREASIZE);
     printf("PILENUM/8 %d \n",PILENUM/8);
-	for(;temp < (PILENUM / 8);temp++)
-	{
+	for(temp = 0;temp < (PILENUM / 8);temp++)
         printf("BitMap %d %d\n",temp,*(BitMap + temp));
-    }
+
+	mallocadress = AreaMALLOC(BitMap,PILENUM,PREDATABITLEN);//保存位置
+    dataadress = ( mallocadress) * PILENUM;					//保存位置据保存起始的距离
+	DataSave(DataSaveArea , dataadress,BitMap,saveBuf,PREDATABYTESLEN,mallocadress);
+
+	mallocadress = AreaMALLOC(BitMap,PILENUM,PREDATABITLEN);//保存位置
+    dataadress = ( mallocadress) * PILENUM;					//保存位置据保存起始的距离
+	DataSave(DataSaveArea , dataadress,BitMap,saveBuf,PREDATABYTESLEN,mallocadress);
+
+	mallocadress = AreaMALLOC(BitMap,PILENUM,PREDATABITLEN);//保存位置
+    dataadress = ( mallocadress) * PILENUM;					//保存位置据保存起始的距离
+	DataSave(DataSaveArea , dataadress,BitMap,saveBuf,PREDATABYTESLEN,mallocadress);
+
+	for(temp = 0;temp < (PILENUM / 8);temp++)
+        printf("BitMap %d %d\n",temp,*(BitMap + temp));	
+	
     return 1;
 
 }
