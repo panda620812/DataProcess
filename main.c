@@ -67,9 +67,6 @@ void BytesU8ArrayBitSet(u8* data, u32 index,unsigned char num)
 unsigned char DataSaveArea[500] = {};	
 unsigned char i = 0;
 
-	
-
-
 unsigned char AreaInit(void)
 {
 	//写入	Area
@@ -77,7 +74,6 @@ unsigned char AreaInit(void)
 	//写入	index
 	
 	//更新	Map
-
 }
 //dataArea  -> DataSaveArea
 unsigned short IndexInit(unsigned char * bitmap,unsigned char *dataArea)
@@ -143,19 +139,18 @@ unsigned char IndexCreat(unsigned char * indexstartadress,unsigned char *savedat
     unsigned char index_num = 0;//Pre Index number
 	unsigned short temp16;
 	//NULL Index Find
-	for(temp16 = 0;temp16 < INDEX_NUM;temp16++)
+    for(temp16 = 0;temp16 < INDEX_NUM;temp16++)//按目录数自增
 	{
 		if((* (indexstartadress + temp16*INDEX_SIZE)) == 0xAA)
 		{
-
 		}
 		else
 		{
-			if((*(indexstartadress + 2)) == 0x00)//使用标记位 IndexItem.usestate
+            if((*(indexstartadress + temp16*INDEX_SIZE + 2)) == 0x00)//使用标记位 IndexItem.usestate
 			//额外的校验，待添加
 			break;
 		}
-        temp16 += INDEX_SIZE;
+        temp16 ++;
 	}
 	//
 	{
@@ -167,7 +162,7 @@ unsigned char IndexCreat(unsigned char * indexstartadress,unsigned char *savedat
 		IndexItem.Time 			= t;
 		IndexItem.sumcheck		= 0x00FF;//待修改
 	}
-    memcpy(indexstartadress + temp16*INDEX_SIZE,&IndexItem,index_num);// --- 全局变量 Index_num
+    memcpy(indexstartadress + temp16*INDEX_SIZE,&IndexItem,sizeof(IndexItem));// --- 全局变量 Index_num
 	index_num ++ ;
     printf("Index++ : %d\n",index_num);
 }
@@ -212,24 +207,44 @@ unsigned char DataDelete(	unsigned char 	* datasaveArea,	// 	数据域起始地�
 	unsigned short bitmaplengh 	= (*((unsigned char *)(datasaveArea + index_num*INDEX_SIZE + 3)))/8;//（保存的数据长度/8）
 	unsigned char temp;
 	//Index Delete
-	memset(datasaveArea,0,INDEX_SIZE);
+    memset(datasaveArea + index_num*INDEX_SIZE,0,INDEX_SIZE);
 	//bitmap Delete
 	for(temp = 0;temp < bitmaplengh;temp++) 
 		ByteU32ArrayBitClr(bitmap,bitmapadress + temp);
 }
 
-unsigned char DataFindFun()
+unsigned short DataFindFun(unsigned int time,unsigned char* indexadress,unsigned char find_item)
 {
 	//
-	
+    unsigned short indexnum = 0;
+    unsigned short temp16 = 0;
+    switch(find_item)
+    {
+        case 0:// time
+            for(;temp16 < INDEX_NUM;temp16++)
+            {
+                if(0x01 == (*indexadress + temp16*INDEX_SIZE + 2))// +2 使用状态判断
+                {
+                    //0xAA CRC
+                    //界限判断 time 去除秒
+                    if((*(int *)(indexadress + temp16*INDEX_SIZE +8)) == time)
+                        return temp16;//依次查询的目录编号
+                }
+            }
+        break;
+        case 1:// flag--->用于扩展---
+
+        break;
+        default : break;
+    }
+    return 0xFFFF;
 }
 unsigned char DataSortFun()
 {
 	
-	
-}unsigned char DatapppFun()
+}
+unsigned char DatapppFun()
 {
-	
 	
 }
 
@@ -272,7 +287,7 @@ unsigned char main()
 
     mallocadress = AreaMALLOC(BitMap,PILENUM,PREDATABITLEN);//保存位置
     dataadress = ( mallocadress) * PILESIZE;					//保存位置据保存起始的距离
-//  DataSave(DataSaveArea , dataadress,BitMap,saveBuf,PREDATABYTESLEN);
+    DataSave(DataSaveArea , dataadress,BitMap,saveBuf,PREDATABYTESLEN);
 
     for(temp = 0;temp < (PILENUM / 8);temp++)
         printf("BitMap %d %d\n",temp,*(BitMap + temp));
@@ -290,11 +305,6 @@ unsigned char main()
     return 1;
 
 }
-
-
-
-
-
 /***************************************************************************************************
 *\Function      BitPointSet
 *\Description   将src指向数据的第pos位置有效。
